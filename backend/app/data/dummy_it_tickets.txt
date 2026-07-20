@@ -1,1 +1,224 @@
+Ticket ID: IT-1001
+Category: VPN connection issues
+Issue: My VPN client keeps saying "authentication failed" even though I know my password is correct. I am locked out of the network.
+Resolution: Clear the cached credentials in the SecureConnect VPN settings menu under Preferences > Security. Restart the application and log in again. If the issue persists, verify your two-factor authentication app is synced properly by checking the time settings on your mobile device.
 
+Ticket ID: IT-1002
+Category: VPN connection issues
+Issue: The connection drops every five minutes when I work from home.
+Resolution: This is typically caused by a MTU (Maximum Transmission Unit) mismatch on your home router. Open the VPN client network settings and change the MTU size from 1500 to 1400. Reconnect the VPN and monitor for stability.
+
+Ticket ID: IT-1003
+Category: VPN connection issues
+Issue: I get a timeout error 809 when trying to connect to the main gateway.
+Resolution: Error 809 indicates that the VPN port is being blocked by your local firewall. Disable any third-party antivirus firewalls temporarily to test the connection. If successful, add an exception for UDP port 500 in your security software.
+
+Ticket ID: IT-1004
+Category: VPN connection issues
+Issue: Can't access the VPN. It just hangs on "Verifying security policies."
+Resolution: The security posture module needs an update. Disconnect the VPN, open the Software Updates Portal from your start menu, and install the latest "Endpoint Security Patch." Restart your machine before attempting to reconnect.
+
+Ticket ID: IT-1005
+Category: VPN connection issues
+Issue: VPN says it is connected, but I can't reach any internal servers or sites.
+Resolution: This is a split-tunneling routing error. Disconnect the VPN, open your command line tool, type "ipconfig /flushdns" and press enter. Reconnect to the VPN and your DNS routes should repopulate correctly.
+
+Ticket ID: IT-1006
+Category: VPN connection issues
+Issue: Setup fails on my new laptop with a generic error message.
+Resolution: Ensure you are running the VPN installer as an administrator. Right-click the installation file, select "Run as Administrator," and follow the prompts. If prompted for an administrative PIN, contact extension 4455.
+
+Ticket ID: IT-1007
+Category: Password reset / account lockout procedures
+Issue: Locked out of my main workstation account after typing my password wrong too many times.
+Resolution: Workstation accounts unlock automatically after 15 minutes of inactivity. If you need immediate access, use your mobile device to visit the Self-Service Identity Portal, select "Unlock Account," and approve the push notification sent to your phone.
+
+Ticket ID: IT-1008
+Category: Password reset / account lockout procedures
+Issue: I need to reset my password but I don't remember my security questions.
+Resolution: If security questions are forgotten, identity verification must be done over the phone. Call the Helpdesk at extension 4000 and provide your Employee ID and manager's name. A temporary access code will be texted to your registered mobile number.
+
+Ticket ID: IT-1009
+Category: Password reset / account lockout procedures
+Issue: The system keeps telling me my new password doesn't meet the complexity requirements, but it's very long.
+Resolution: Passwords must be at least 14 characters long and cannot contain your first name, last name, or the company name. Ensure you are including at least one special character and one number, and that you haven't used this password in the last 12 months.
+
+Ticket ID: IT-1010
+Category: Password reset / account lockout procedures
+Issue: My password expired while I was on vacation and now I can't get into anything.
+Resolution: Connect your laptop to the office Wi-Fi network (or plug in via Ethernet) before attempting to log in. Click the "Reset Password" link on the Windows login screen. The system will prompt you to create a new password and sync it with the domain controller.
+
+Ticket ID: IT-1011
+Category: Password reset / account lockout procedures
+Issue: I reset my password on my laptop, but now my phone keeps locking out my account.
+Resolution: Your mobile devices are still trying to authenticate with your old password. Update the password in your mobile email client and the corporate Wi-Fi profile on your phone immediately after a password change to prevent automatic lockouts.
+
+Ticket ID: IT-1012
+Category: Password reset / account lockout procedures
+Issue: Trying to reset my password but I am not receiving the SMS code.
+Resolution: Carrier delays can sometimes affect SMS delivery. On the password reset screen, click "Use alternate method" and select "Email my personal address." If you still do not receive a code, contact the IT service desk to verify your contact information on file.
+
+Ticket ID: IT-1013
+Category: Timesheet / internal portal login errors
+Issue: The time tracking portal just shows a blank white page when I try to log in.
+Resolution: The time portal requires cookies to be enabled. Clear your browser cache and cookies, then restart the browser. Alternatively, try accessing the portal using an Incognito or Private Browsing window to bypass any corrupt cached data.
+
+Ticket ID: IT-1014
+Category: Timesheet / internal portal login errors
+Issue: Keep getting an "Unauthorized Access" error on the HR benefits dashboard.
+Resolution: This error occurs when your session token expires. Log out of the main corporate intranet page entirely, close all browser tabs, and log back in. If the issue persists, submit a ticket to the Access Management team to verify your department role.
+
+Ticket ID: IT-1015
+Category: Timesheet / internal portal login errors
+Issue: The submit button on my weekly timesheet is greyed out.
+Resolution: A greyed-out submit button indicates missing required fields. Ensure you have allocated all 40 hours for the week and selected a project code for each entry. Once all mandatory fields are complete, the system will enable the submit button.
+
+Ticket ID: IT-1016
+Category: Timesheet / internal portal login errors
+Issue: Single Sign-On isn't working for the internal wiki. It asks for a manual login.
+Resolution: The internal wiki has transitioned to a new SSO provider. Do not use your old bookmarks. Navigate to the main company app launcher and click the Wiki icon there. This will generate a fresh SSO token and log you in automatically.
+
+Ticket ID: IT-1017
+Category: Timesheet / internal portal login errors
+Issue: I am a new hire and the timesheet system says my profile does not exist.
+Resolution: New profiles take up to 48 hours to sync from the HR database to the timesheet system. If it has been more than 48 hours since your start date, request your manager to manually trigger the profile sync in the Manager Dashboard.
+
+Ticket ID: IT-1018
+Category: Timesheet / internal portal login errors
+Issue: The internal portal is stuck in a redirect loop, constantly refreshing.
+Resolution: This is a known issue with an outdated browser extension conflicting with our portal scripts. Disable all ad-blockers and privacy extensions for the internal portal domain. Reload the page to confirm access.
+
+Ticket ID: IT-1019
+Category: Laptop / hardware requests and issues
+Issue: I dropped my laptop and the screen is cracked. It still turns on but half the screen is black.
+Resolution: Stop using the device immediately to prevent further damage. Bring the laptop to the IT walk-up desk on the 3rd floor for a hardware swap. A loaner laptop will be issued to you while yours is sent out for screen replacement.
+
+Ticket ID: IT-1020
+Category: Laptop / hardware requests and issues
+Issue: My battery drains in less than an hour even when fully charged.
+Resolution: The battery has likely reached the end of its lifecycle. Run the built-in diagnostic tool by pressing F12 during boot. If the battery health shows as "Poor" or "Degraded," submit a hardware replacement request through the IT catalog for a new battery.
+
+Ticket ID: IT-1021
+Category: Laptop / hardware requests and issues
+Issue: Need an ergonomic keyboard and a vertical mouse for my desk.
+Resolution: Ergonomic hardware requests require approval from the Workplace Safety team. Please fill out the Ergonomic Assessment Form on the intranet. Once approved, IT will procure and deliver the requested peripherals to your desk within 5 business days.
+
+Ticket ID: IT-1022
+Category: Laptop / hardware requests and issues
+Issue: The docking station at my hot-desk isn't recognizing my external monitors.
+Resolution: Unplug the main USB-C cable from your laptop, power cycle the docking station by unplugging it from the wall for 10 seconds, and plug everything back in. Ensure the USB-C cable is inserted into the port marked with a lightning bolt symbol on your laptop.
+
+Ticket ID: IT-1023
+Category: Laptop / hardware requests and issues
+Issue: My laptop fan is incredibly loud and the bottom is very hot to the touch.
+Resolution: This indicates restricted airflow or thermal paste degradation. Please use compressed air to clear the side and bottom vents. If the laptop continues to overheat, bring it to the IT desk so we can re-apply thermal paste and check the cooling fans.
+
+Ticket ID: IT-1024
+Category: Laptop / hardware requests and issues
+Issue: Need a replacement charger, I left mine at a hotel during a business trip.
+Resolution: Lost peripheral replacements are charged to your department's cost center. Submit a request via the IT procurement portal and select your manager as the approver. Once approved, you can pick up a new charger from the IT stockroom.
+
+Ticket ID: IT-1025
+Category: Printer setup and troubleshooting
+Issue: The printer on the 4th floor has a paper jam in tray 2 and won't print.
+Resolution: Open the side access panel of the printer and gently pull out the jammed paper along the path of the rollers to avoid tearing. Close the panel, remove the paper stack from Tray 2, fan the pages, and reinsert them. Press the green resume button on the printer screen.
+
+Ticket ID: IT-1026
+Category: Printer setup and troubleshooting
+Issue: I am trying to print a confidential document but it isn't showing up at the printer.
+Resolution: Confidential prints require Secure Release. Go to the printer, swipe your employee badge on the card reader, and select the document from the touch screen to release the job. Documents left in the queue for more than 4 hours are automatically deleted.
+
+Ticket ID: IT-1027
+Category: Printer setup and troubleshooting
+Issue: Keep getting an "Offline" status for the main office color printer on my computer.
+Resolution: The printer IP address recently changed. Go to Windows Settings > Devices > Printers, remove the old printer profile, and click "Add a printer or scanner." Search the directory for "MainOffice-Color-01" and click install to download the updated drivers.
+
+Ticket ID: IT-1028
+Category: Printer setup and troubleshooting
+Issue: Prints are coming out with a massive black streak down the middle of the page.
+Resolution: This indicates a defective drum unit or a leaking toner cartridge. Do not attempt to clean it yourself. Power off the printer and place an "Out of Order" sign on it. Reply to this ticket with the printer's asset tag number so a technician can replace the drum.
+
+Ticket ID: IT-1029
+Category: Printer setup and troubleshooting
+Issue: How do I connect my Mac to the department network printer?
+Resolution: Open System Preferences > Printers & Scanners and click the plus (+) button. Select the IP tab, enter the printer's IP address (found on the physical label on the printer), and select "Generic PostScript Printer" under the Use menu. Click Add.
+
+Ticket ID: IT-1030
+Category: Printer setup and troubleshooting
+Issue: The printer keeps asking for legal sized paper but my document is standard letter size.
+Resolution: Your document formatting is forcing the printer to request a different paper size. Before printing, click "Page Setup" in your application and ensure the paper size is set to "Letter (8.5 x 11)". If the printer is stuck, press the red cancel button on the printer dashboard to clear the memory.
+
+Ticket ID: IT-1031
+Category: Software license requests
+Issue: I need access to the graphic design suite for a new marketing project.
+Resolution: Design software licenses are limited and billed per user. Submit a software request form through the IT catalog and attach written approval from the Marketing Director. Once approved, the license will be assigned and the software will push to your machine automatically via the company app store.
+
+Ticket ID: IT-1032
+Category: Software license requests
+Issue: My IDE says the license has expired and it's reverting to the free version.
+Resolution: Developer licenses are renewed annually in batches. Open the IDE, navigate to Help > Register, and click "Refresh License from Server." Ensure you are connected to the corporate VPN while doing this so it can reach the internal license server.
+
+Ticket ID: IT-1033
+Category: Software license requests
+Issue: Need a wireframing tool. Can I buy my own and expense it?
+Resolution: No, personal software purchases are against the security policy. We have a corporate enterprise agreement for wireframing software. Search for "DesignMockup" in the Self-Service App Portal and click install. The license is automatically provisioned upon installation.
+
+Ticket ID: IT-1034
+Category: Software license requests
+Issue: Requesting a license for the data visualization dashboard tool for my whole team.
+Resolution: Bulk license requests require a procurement review. Please email the IT Asset Management team with the exact number of users, the business justification, and your department's cost center code. The review process typically takes 3 to 5 business days.
+
+Ticket ID: IT-1035
+Category: Software license requests
+Issue: I don't use the video editing software anymore, can we give my license to Sarah?
+Resolution: Licenses cannot be transferred directly between users. You must uninstall the software from your machine using the Add/Remove Programs menu. Once uninstalled, the license returns to the central pool, and Sarah must submit a new request via the IT catalog to claim it.
+
+Ticket ID: IT-1036
+Category: Email access problems
+Issue: I can receive emails perfectly fine, but everything I try to send sits in the outbox.
+Resolution: This occurs when the outgoing SMTP server connection is interrupted. Close the email client entirely. Reopen it and check the connection status at the bottom of the window. If it says "Disconnected," click the Send/Receive tab and select "Work Offline," then click it again to force a server reconnection.
+
+Ticket ID: IT-1037
+Category: Email access problems
+Issue: Getting a bounce-back message saying my mailbox is full, but I deleted a few things.
+Resolution: Deleting emails only moves them to the "Deleted Items" folder, which still counts against your quota. Right-click your Deleted Items folder and select "Empty Folder." You should also move large attachments to your cloud storage drive to permanently free up mailbox space.
+
+Ticket ID: IT-1038
+Category: Email access problems
+Issue: My calendar meetings are not syncing between my phone and my laptop.
+Resolution: The mobile email profile needs to be refreshed. On your phone, go to Settings > Mail > Accounts, select your corporate account, and toggle the Calendar sync off and then back on. Wait five minutes for the background sync to complete.
+
+Ticket ID: IT-1039
+Category: Email access problems
+Issue: All emails from an external vendor are going straight to my junk folder.
+Resolution: The corporate spam filter is flagging the external domain. Right-click one of the legitimate emails in your junk folder, select Junk, and click "Never Block Sender's Domain." This will add them to your safe senders list and route future emails to your inbox.
+
+Ticket ID: IT-1040
+Category: Email access problems
+Issue: I accidentally deleted an important email from last week and emptied my trash.
+Resolution: Emails permanently deleted from the trash can still be recovered for up to 30 days. Click on the "Deleted Items" folder, then look for the link at the top that says "Recover items recently removed from this folder." Select your missing email and click Restore.
+
+Ticket ID: IT-1041
+Category: WiFi / network access issues
+Issue: My laptop won't connect to the main office Wi-Fi, it just says "Can't connect to this network."
+Resolution: Your computer is likely holding onto an expired security certificate for the Wi-Fi. Go to your Network Settings, click "Manage known networks," select the corporate Wi-Fi network, and click "Forget." Click on the Wi-Fi icon in your system tray and reconnect, entering your current computer password.
+
+Ticket ID: IT-1042
+Category: WiFi / network access issues
+Issue: The Wi-Fi is incredibly slow in the corner conference room today.
+Resolution: There may be a failing access point in that zone. Please disconnect from the Wi-Fi and reconnect to force your device to roam to the nearest healthy access point. Submit a follow-up with the exact name of the conference room so our network team can reboot the faulty hardware.
+
+Ticket ID: IT-1043
+Category: WiFi / network access issues
+Issue: Trying to connect my mobile phone to the guest network, but the captive portal won't load.
+Resolution: Captive portals often fail to load if your phone uses custom DNS settings or a private VPN. Disable any personal VPNs and set your DNS to automatic. Open your web browser and navigate to a non-secure site like "neverssl.com" to manually trigger the guest Wi-Fi login page.
+
+Ticket ID: IT-1044
+Category: WiFi / network access issues
+Issue: Cannot access local network shared drives when connected to the office Wi-Fi.
+Resolution: The guest and mobile Wi-Fi networks do not have access to internal file shares for security reasons. Ensure you are connected to the primary "Corp-Secure" SSID and not the "Corp-Guest" network.
+
+Ticket ID: IT-1045
+Category: WiFi / network access issues
+Issue: Getting an IP conflict error message on the network.
+Resolution: Another device on the network is trying to use the same IP address as your machine. Open the command prompt and type "ipconfig /release", hit enter, then type "ipconfig /renew" and hit enter. This will request a fresh, available IP address from the DHCP server.
