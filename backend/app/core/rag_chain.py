@@ -1,71 +1,77 @@
-import os
-from langchain_community.document_loaders import TextLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import PromptTemplate
+from app.config import settings
+from .vectorstore import get_vectorstore, get_ticket_lookup
+from .retrieval_strategies import get_strategy
 
-# Import our singleton Chroma client
-from .vectorstore import ChromaDBSingleton
+# Initialize the LLM (Gemini)
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3.5-flash",
+    temperature=0,
+    api_key=settings.GOOGLE_API_KEY
+)
 
-def prepare_and_store_documents():
+# Standard RAG prompt
+RAG_PROMPT_TEMPLATE = """
+You are an IT support AI assistant. Answer the user's question based ONLY on the following context.
+If the answer cannot be found in the context, say "I don't know" and do not guess.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:
+"""
+rag_prompt = PromptTemplate.from_template(RAG_PROMPT_TEMPLATE)
+
+def ask_question(question: str, strategy_name: str = None) -> dict:
     """
-    Reads the dummy IT tickets, chunks the text, creates embeddings, 
-    and stores them into ChromaDB using the singleton pattern.
+    Retrieves context using a specific strategy and answers the question using an LLM.
+    
+    DEPENDENCY INJECTION PATTERN:
+    By accepting strategy_name as a parameter with a config-driven default, we get the best 
+    of both worlds:
+    1. Good Defaults: In production, we don't have to specify the strategy on every single API call;
+       it falls back to config.DEFAULT_RETRIEVAL_STRATEGY.
+    2. Testability/Swappability: We can explicitly override it per-call during testing (e.g. A/B testing, 
+       evaluating metrics in Langfuse) without having to restart the application or permanently change 
+       the .env file! This is vastly superior to a pure env-var-only switch, which locks the entire app 
+       into one strategy at runtime.
     """
+    # 1. Resolve strategy
+    if strategy_name is None:
+        strategy_name = settings.DEFAULT_RETRIEVAL_STRATEGY
+        
+    strategy = get_strategy(strategy_name)
     
-    # 1. Load the data
-    # Locate dummy_it_tickets.txt relative to this script
-    current_dir = os.path.dirname(__file__)
-    file_path = os.path.join(current_dir, "..", "data", "dummy_it_tickets.txt")
+    # 2. Get dependencies
+    vectorstore = get_vectorstore()
+    ticket_lookup = get_ticket_lookup()
     
-    print(f"Loading documents from {file_path}...")
-    loader = TextLoader(file_path)
-    documents = loader.load()
-
-    # 2. Chunking
-    # CONCEPT: "Chunking" means taking a large document and chopping it up into smaller, bite-sized 
-    # pieces (chunks) that an AI model can easily process. Large language models have a limit to 
-    # how much text they can "read" at once (context window), so chunking is necessary.
-    # 
-    # OVERLAP: We use chunk_overlap to prevent losing context at chunk boundaries. If an important 
-    # concept or sentence is split right down the middle between two chunks, having a slight overlap 
-    # ensures both chunks share a bit of that context, keeping ideas intact.
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=400,
-        chunk_overlap=50
-    )
-    chunks = text_splitter.split_documents(documents)
-
-    # 3. Embeddings
-    # CONCEPT: "Embeddings" translate human text into lists of numbers (vectors) that computers can 
-    # mathematically compare. Sentences with similar meanings will have similar numbers. This lets 
-    # the system search for information based on its actual meaning, not just exact keyword matches.
-    #
-    # This specific model runs locally on your machine, which means there is no API cost 
-    # and your data is not sent to external servers.
-    print("Initializing embeddings model (this runs locally, no API cost)...")
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    # 4. Store in Vector Database (ChromaDB)
-    # We retrieve the singleton Chroma client so we don't re-initialize the DB engine pointlessly.
-    chroma_client = ChromaDBSingleton.get_client()
+    # 3. Execute retrieval strategy
+    retrieval_result = strategy.retrieve(question, vectorstore, ticket_lookup)
+    context = retrieval_result["context"]
+    source_ticket_ids = retrieval_result["source_ticket_ids"]
+    source_categories = retrieval_result.get("source_categories", [])
     
-    print("Storing chunks into ChromaDB...")
-    # We initialize the Chroma vectorstore with our persistent client.
-    # If the collection doesn't exist, it will be created.
-    vectorstore = Chroma(
-        client=chroma_client,
-        collection_name="it_tickets_collection",
-        embedding_function=embeddings,
-    )
+    # 4. Prompt Gemini
+    prompt_value = rag_prompt.invoke({"context": context, "question": question})
     
-    # Add the chunks into the vector database
-    vectorstore.add_documents(chunks)
+    try:
+        response = llm.invoke(prompt_value)
+        answer = response.content
+    except Exception as e:
+        answer = f"Error: Gemini models are down from Google side only. Details: {str(e)}"
 
-    # 5. Print out results
-    print(f"Successfully created and stored {len(chunks)} chunks!")
+    # 5. Return structured result
+    return {
+        "answer": answer,
+        "sources": source_ticket_ids,
+        "categories": source_categories,
+        "strategy_used": strategy_name
+    }
 
 if __name__ == "__main__":
-    prepare_and_store_documents()
+    # Test the function directly
+    print(ask_question("how to reset my password of my laptop?"))

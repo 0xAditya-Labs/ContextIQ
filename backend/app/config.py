@@ -10,6 +10,10 @@ class Settings:
         self.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
         self.LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
         self.LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+        
+        # Retrieval strategy for RAG. Defaults to 'metadata_chunk'.
+        # Valid values: 'metadata_chunk' or 'parent_document'
+        self.DEFAULT_RETRIEVAL_STRATEGY = os.getenv("RETRIEVAL_STRATEGY", "metadata_chunk")
 
 # Instantiate a single settings object to be imported across the application
 settings = Settings()
