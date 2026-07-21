@@ -11,6 +11,10 @@ class Settings:
         self.LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
         self.LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
         
+        # LLM Provider Configuration
+        self.LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
+        self.GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+        
         # Retrieval strategy for RAG. Defaults to 'metadata_chunk'.
         # Valid values: 'metadata_chunk' or 'parent_document'
         self.DEFAULT_RETRIEVAL_STRATEGY = os.getenv("RETRIEVAL_STRATEGY", "metadata_chunk")

@@ -1,15 +1,11 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from app.config import settings
-from .vectorstore import get_vectorstore, get_ticket_lookup
 from .retrieval_strategies import get_strategy
+from .vectorstore import get_vectorstore, get_ticket_lookup
+from .llm_factory import get_llm
 
-# Initialize the LLM (Gemini)
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash",
-    temperature=0,
-    api_key=settings.GOOGLE_API_KEY
-)
+# Initialize the LLM via factory
+llm = get_llm()
 
 # Standard RAG prompt
 RAG_PROMPT_TEMPLATE = """
