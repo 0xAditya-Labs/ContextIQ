@@ -2,7 +2,6 @@ import os
 import chromadb
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from .ticket_parser import parse_tickets
 
@@ -22,13 +21,21 @@ class ChromaDBSingleton:
         
     @classmethod
     def get_embeddings(cls):
-        # SINGLETON PATTERN: load the expensive embedding weights once at startup, 
-        # instead of reloading them on every single retrieval call.
+        # SINGLETON PATTERN: load the expensive embedding weights once at startup
         if cls._embeddings_instance is None:
-            print("Initializing Google Generative AI embeddings model to save memory...")
-            cls._embeddings_instance = GoogleGenerativeAIEmbeddings(
-                model="models/embedding-001"
-            )
+            from app.config import settings
+            if settings.EMBEDDING_PROVIDER == "google":
+                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                print("Initializing Google Generative AI embeddings model...")
+                cls._embeddings_instance = GoogleGenerativeAIEmbeddings(
+                    model="models/embedding-001"
+                )
+            else:
+                from langchain_huggingface import HuggingFaceEmbeddings
+                print("Initializing HuggingFace embeddings model (this runs locally)...")
+                cls._embeddings_instance = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
+                )
         return cls._embeddings_instance
 
 def prepare_and_store_documents():
