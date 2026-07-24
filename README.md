@@ -9,7 +9,8 @@
 </div>
 
 <div align="center">
-  <b><a href="https://youtu.be/iB0DpAtEWZA?si=DufV_p64cXk-fUmC">🎥 Watch the Live Video Demo</a></b> | 
+  <b><a href="https://context-iq-frontend-seven.vercel.app/">🌐 Try the Live App</a></b> | 
+  <b><a href="https://youtu.be/iB0DpAtEWZA?si=DufV_p64cXk-fUmC">🎥 Watch the Video Demo</a></b> | 
   <b><a href="https://docs.google.com/presentation/d/1YjKR_LsQPGX68dEUOVmqeWUsBH6sl-gq/edit?usp=sharing&ouid=105688022393717157912&rtpof=true&sd=true">📊 View the Presentation (PPT)</a></b>
 </div>
 
