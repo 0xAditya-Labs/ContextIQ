@@ -2,8 +2,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from .config import settings
+import os
+from .core.vectorstore import prepare_and_store_documents
 
 app = FastAPI(title="ContextIQ IT Support API")
+
+# --- STARTUP EVENT ---
+# If chroma_db is missing (which happens on Render because it's gitignored),
+# we need to automatically ingest the dummy tickets into the vector database.
+@app.on_event("startup")
+async def startup_event():
+    current_dir = os.path.dirname(__file__)
+    db_path = os.path.join(current_dir, "..", "chroma_db")
+    if not os.path.exists(db_path):
+        print("ChromaDB not found! Automatically generating the vector database on startup...")
+        prepare_and_store_documents()
+    else:
+        print("ChromaDB found. Skipping ingestion.")
+
 
 # What is CORS and why is it needed?
 # CORS (Cross-Origin Resource Sharing) is a security feature built into web browsers.
