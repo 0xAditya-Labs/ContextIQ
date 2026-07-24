@@ -28,7 +28,7 @@ class ChromaDBSingleton:
                 from langchain_google_genai import GoogleGenerativeAIEmbeddings
                 print("Initializing Google Generative AI embeddings model...")
                 cls._embeddings_instance = GoogleGenerativeAIEmbeddings(
-                    model="models/embedding-001"
+                    model="models/text-embedding-004"
                 )
             else:
                 from langchain_huggingface import HuggingFaceEmbeddings
