@@ -21,11 +21,19 @@ def get_llm():
         )
     
     elif provider == "gemini":
-        return ChatGoogleGenerativeAI(
+        main_llm = ChatGoogleGenerativeAI(
             model="gemini-3.5-flash",
             temperature=0,
-            api_key=settings.GOOGLE_API_KEY
+            google_api_key=settings.GOOGLE_API_KEY
         )
+        if settings.GOOGLE_API_KEY_FALLBACK:
+            fallback_llm = ChatGoogleGenerativeAI(
+                model="gemini-3.5-flash",
+                temperature=0,
+                google_api_key=settings.GOOGLE_API_KEY_FALLBACK
+            )
+            return main_llm.with_fallbacks([fallback_llm])
+        return main_llm
         
     else:
         raise ValueError(f"Unknown LLM_PROVIDER: '{provider}'. Valid options are 'gemini' or 'groq'.")

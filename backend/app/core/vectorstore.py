@@ -27,9 +27,30 @@ class ChromaDBSingleton:
             if settings.EMBEDDING_PROVIDER == "google":
                 from langchain_google_genai import GoogleGenerativeAIEmbeddings
                 print("Initializing Google Generative AI embeddings model...")
-                cls._embeddings_instance = GoogleGenerativeAIEmbeddings(
-                    model="models/text-embedding-004"
+                main_emb = GoogleGenerativeAIEmbeddings(
+                    model="models/text-embedding-004",
+                    google_api_key=settings.GOOGLE_API_KEY
                 )
+                if settings.GOOGLE_API_KEY_FALLBACK:
+                    fallback_emb = GoogleGenerativeAIEmbeddings(
+                        model="models/text-embedding-004",
+                        google_api_key=settings.GOOGLE_API_KEY_FALLBACK
+                    )
+                    
+                    class FallbackWrapper:
+                        def __init__(self, m, f):
+                            self.m = m
+                            self.f = f
+                        def embed_documents(self, t):
+                            try: return self.m.embed_documents(t)
+                            except: return self.f.embed_documents(t)
+                        def embed_query(self, t):
+                            try: return self.m.embed_query(t)
+                            except: return self.f.embed_query(t)
+                            
+                    cls._embeddings_instance = FallbackWrapper(main_emb, fallback_emb)
+                else:
+                    cls._embeddings_instance = main_emb
             else:
                 from langchain_huggingface import HuggingFaceEmbeddings
                 print("Initializing HuggingFace embeddings model (this runs locally)...")
