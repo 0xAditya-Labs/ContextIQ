@@ -28,12 +28,12 @@ class ChromaDBSingleton:
                 from langchain_google_genai import GoogleGenerativeAIEmbeddings
                 print("Initializing Google Generative AI embeddings model...")
                 main_emb = GoogleGenerativeAIEmbeddings(
-                    model="models/text-embedding-004",
+                    model="text-embedding-004",  # No "models/" prefix — required for v1 API
                     google_api_key=settings.GOOGLE_API_KEY
                 )
                 if settings.GOOGLE_API_KEY_FALLBACK:
                     fallback_emb = GoogleGenerativeAIEmbeddings(
-                        model="models/text-embedding-004",
+                        model="text-embedding-004",
                         google_api_key=settings.GOOGLE_API_KEY_FALLBACK
                     )
                     
