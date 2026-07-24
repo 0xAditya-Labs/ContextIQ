@@ -145,3 +145,12 @@ cython_debug/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Large media and presentation files
+*.mp4
+*.pptx
+*.pdf
+~$*.pptx
+
+# Chroma DB
+chroma_db/

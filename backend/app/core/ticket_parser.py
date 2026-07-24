@@ -52,5 +52,5 @@ def parse_tickets(filepath: str) -> list[dict]:
         # Only add valid tickets
         if ticket_dict["ticket_id"]:
             parsed_tickets.append(ticket_dict)
-            
+
     return parsed_tickets

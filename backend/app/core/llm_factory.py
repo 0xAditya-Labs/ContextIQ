@@ -15,7 +15,7 @@ def get_llm():
             raise ValueError("GROQ_API_KEY is not set in your .env file!")
             
         return ChatGroq(
-            model="llama3-8b-8192",  # Defaulting to an extremely fast and capable open model
+            model="llama-3.1-8b-instant",  # Switched to 8B because 70B is exhausted and decommissioned. The docstring now contains anti-hallucination instructions.
             temperature=0,
             api_key=settings.GROQ_API_KEY
         )

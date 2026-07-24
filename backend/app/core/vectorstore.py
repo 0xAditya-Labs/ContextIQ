@@ -7,17 +7,29 @@ from langchain_chroma import Chroma
 from .ticket_parser import parse_tickets
 
 class ChromaDBSingleton:
-    _instance = None
+    _client_instance = None
+    _embeddings_instance = None
 
     @classmethod
     def get_client(cls):
         # SINGLETON PATTERN: avoids re-initializing DB client on every call, 
         # which causes repeated disk I/O and slow cold-starts.
-        if cls._instance is None:
+        if cls._client_instance is None:
             # We initialize the PersistentClient. 
             # Note: newer chromadb uses `path` rather than `persist_directory`.
-            cls._instance = chromadb.PersistentClient(path="./chroma_db")
-        return cls._instance
+            cls._client_instance = chromadb.PersistentClient(path="./chroma_db")
+        return cls._client_instance
+        
+    @classmethod
+    def get_embeddings(cls):
+        # SINGLETON PATTERN: load the expensive embedding weights once at startup, 
+        # instead of reloading them on every single retrieval call.
+        if cls._embeddings_instance is None:
+            print("Initializing embeddings model (this runs locally, no API cost)...")
+            cls._embeddings_instance = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2"
+            )
+        return cls._embeddings_instance
 
 def prepare_and_store_documents():
     """
@@ -50,18 +62,16 @@ def prepare_and_store_documents():
         documents.append(doc)
         ticket_lookup[ticket["ticket_id"]] = ticket["full_text"]
 
+    from app.config import settings
     # 2. Chunking
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=400,
-        chunk_overlap=50
+        chunk_size=settings.CHUNK_SIZE,
+        chunk_overlap=settings.CHUNK_OVERLAP
     )
     chunks = text_splitter.split_documents(documents)
 
-    # 3. Embeddings
-    print("Initializing embeddings model (this runs locally, no API cost)...")
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
+    # 3. Embeddings (Reuse Singleton)
+    embeddings = ChromaDBSingleton.get_embeddings()
 
     # 4. Store in Vector Database (ChromaDB)
     chroma_client = ChromaDBSingleton.get_client()
@@ -101,14 +111,31 @@ def get_vectorstore():
     Returns the initialized Chroma vectorstore object.
     """
     chroma_client = ChromaDBSingleton.get_client()
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
+    embeddings = ChromaDBSingleton.get_embeddings()
     return Chroma(
         client=chroma_client,
         collection_name="it_tickets_collection",
         embedding_function=embeddings,
     )
+
+def perform_similarity_search(question: str, k: int = 3):
+    """
+    Wraps the Chroma similarity_search in a manual OpenTelemetry span.
+    
+    Why this is needed:
+    Langfuse (via its CallbackHandler) automatically traces LLM invocations and 
+    LangChain sequences, but it does NOT catch raw backend operations like this 
+    Chroma database query. By adding a manual OTel span here, we can measure 
+    the exact DB-level latency separately from the LLM processing time.
+    """
+    from .telemetry import tracer
+    
+    vectorstore = get_vectorstore()
+    
+    with tracer.start_as_current_span("vector_db_search") as span:
+        span.set_attribute("query", question)
+        span.set_attribute("k", k)
+        return vectorstore.similarity_search(question, k=k)
 
 if __name__ == "__main__":
     prepare_and_store_documents()

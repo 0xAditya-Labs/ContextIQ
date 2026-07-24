@@ -1,6 +1,11 @@
 import os
-from .rag_chain import ask_question
-from .vectorstore import prepare_and_store_documents
+import sys
+
+# Ensure backend directory is in sys.path so 'app' can be imported
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.core.rag_chain import ask_question
+from app.core.vectorstore import prepare_and_store_documents
 
 def run_tests():
     questions = [

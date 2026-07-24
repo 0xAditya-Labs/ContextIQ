@@ -22,6 +22,9 @@ class RetrievalStrategy(ABC):
         """
         pass
 
+from app.config import settings
+from .vectorstore import perform_similarity_search
+
 class MetadataChunkStrategy(RetrievalStrategy):
     """
     Retrieves the most similar raw chunks and returns them directly as context.
@@ -29,8 +32,8 @@ class MetadataChunkStrategy(RetrievalStrategy):
     Cons: Might lose broader context surrounding the chunk.
     """
     def retrieve(self, question: str, vectorstore, ticket_lookup: dict) -> dict:
-        # Perform similarity search to get top 3 chunks
-        chunks = vectorstore.similarity_search(question, k=3)
+        # Perform similarity search to get top K chunks using our OTel-traced wrapper
+        chunks = perform_similarity_search(question, k=settings.K_RESULTS)
         
         # Combine the chunk text as context
         context = "\n\n".join([chunk.page_content for chunk in chunks])
@@ -61,8 +64,8 @@ class ParentDocumentStrategy(RetrievalStrategy):
     Cons: Consumes more context window, potentially slower generation.
     """
     def retrieve(self, question: str, vectorstore, ticket_lookup: dict) -> dict:
-        # Perform similarity search to get top 3 chunks
-        chunks = vectorstore.similarity_search(question, k=3)
+        # Perform similarity search to get top K chunks using our OTel-traced wrapper
+        chunks = perform_similarity_search(question, k=settings.K_RESULTS)
         
         # Extract unique source ticket IDs and categories
         source_ticket_ids = list(set([

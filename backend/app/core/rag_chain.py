@@ -7,19 +7,8 @@ from .llm_factory import get_llm
 # Initialize the LLM via factory
 llm = get_llm()
 
-# Standard RAG prompt
-RAG_PROMPT_TEMPLATE = """
-You are an IT support AI assistant. Answer the user's question based ONLY on the following context.
-If the answer cannot be found in the context, say "I don't know" and do not guess.
-
-Context:
-{context}
-
-Question: {question}
-
-Answer:
-"""
-rag_prompt = PromptTemplate.from_template(RAG_PROMPT_TEMPLATE)
+# Standard RAG prompt is now loaded dynamically from the environment
+rag_prompt = PromptTemplate.from_template(settings.RAG_SYSTEM_PROMPT)
 
 def ask_question(question: str, strategy_name: str = None) -> dict:
     """
