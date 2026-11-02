@@ -42,39 +42,52 @@ class GoogleRestEmbeddings:
 
     Why not use langchain_google_genai?
     The package's internal google-genai SDK routes through v1beta.
-    text-embedding-004 is NOT available on v1beta → HTTP 404.
-    Calling v1 directly via requests is the only working path.
+    Calling v1 directly via requests provides stable model access and key fallback.
     """
 
-    MODEL   = "models/text-embedding-004"
-    API_URL = f"https://generativelanguage.googleapis.com/v1/{MODEL}:embedContent"
+    DEFAULT_MODELS = [
+        "models/gemini-embedding-001",
+        "models/text-embedding-004",
+    ]
 
     def __init__(self, api_key: str, fallback_api_key: str = None):
+        from app.config import settings
         self.api_key          = api_key
         self.fallback_api_key = fallback_api_key
+        preferred_model       = getattr(settings, "GOOGLE_EMBEDDING_MODEL", "").strip()
+        self.models = [preferred_model] if preferred_model else self.DEFAULT_MODELS
 
-    def _call_api(self, text: str, api_key: str) -> list:
+    def _call_api(self, text: str, api_key: str, model: str) -> list:
+        if not model.startswith("models/"):
+            model = f"models/{model}"
+        url = f"https://generativelanguage.googleapis.com/v1/{model}:embedContent"
         response = requests.post(
-            self.API_URL,
+            url,
             params={"key": api_key},
-            json={"model": self.MODEL, "content": {"parts": [{"text": text}]}},
+            json={"model": model, "content": {"parts": [{"text": text}]}},
             timeout=30,
         )
         response.raise_for_status()
         return response.json()["embedding"]["values"]
 
     def _embed_one(self, text: str) -> list:
-        """Embed a single string; fall back to secondary key on failure."""
-        try:
-            return self._call_api(text, self.api_key)
-        except Exception as primary_error:
-            if self.fallback_api_key:
-                logger.warning(
-                    f"Primary embedding key failed ({primary_error}), "
-                    "trying fallback key..."
-                )
-                return self._call_api(text, self.fallback_api_key)
-            raise
+        """Embed a single string; tries available models and key fallback."""
+        keys = [k for k in [self.api_key, self.fallback_api_key] if k]
+        last_error = None
+
+        for model in self.models:
+            for key in keys:
+                try:
+                    return self._call_api(text, key, model)
+                except Exception as e:
+                    last_error = e
+                    logger.warning(
+                        f"Embedding call failed with model '{model}' and key '...{key[-6:]}': {e}"
+                    )
+
+        if last_error:
+            raise last_error
+        raise RuntimeError("No Google API keys available for embeddings.")
 
     def embed_documents(self, texts: list) -> list:
         return [self._embed_one(t) for t in texts]

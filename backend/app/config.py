@@ -32,6 +32,9 @@ class Settings:
         # ── Embeddings ──────────────────────────────────────────────────────────
         # EMBEDDING_PROVIDER: "google" (cloud, zero RAM) | "huggingface" (local, ~400MB RAM)
         self.EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "google").lower().strip()
+        self.GOOGLE_EMBEDDING_MODEL = os.getenv(
+            "GOOGLE_EMBEDDING_MODEL", "models/gemini-embedding-001"
+        ).strip()
 
         # ── Retrieval / RAG ─────────────────────────────────────────────────────
         # DEFAULT_RETRIEVAL_STRATEGY: "metadata_chunk" | "parent_document"
