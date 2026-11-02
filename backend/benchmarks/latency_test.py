@@ -107,3 +107,21 @@ print(f'  "Optimized vector-search latency by {improvement:.0f}% '
 print("=" * 60)
 print("\nAlso check otel_traces.log for the official OTel span durations.")
 
+# ── Write JSON output for fill_results.py ─────────────────────────────────────
+import json
+
+_results = {
+    "cold_mean_ms": round(cold_mean, 2),
+    "cold_p50_ms":  round(p(cold_latencies, .50), 2),
+    "cold_p95_ms":  round(p(cold_latencies, .95), 2),
+    "warm_mean_ms": round(warm_mean, 2),
+    "warm_p50_ms":  round(p(warm_latencies, .50), 2),
+    "warm_p95_ms":  round(p(warm_latencies, .95), 2),
+    "improvement_pct": round(improvement, 1),
+}
+
+_out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results_latency.json")
+with open(_out, "w", encoding="utf-8") as _f:
+    json.dump(_results, _f, indent=2)
+print(f"\nResults saved → {_out}")
+

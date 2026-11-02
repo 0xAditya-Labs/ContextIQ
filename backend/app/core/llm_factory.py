@@ -1,6 +1,31 @@
+"""
+ContextIQ — LLM Factory
+=========================
+Single place to initialise the language model. All other modules call get_llm()
+and never import ChatGoogleGenerativeAI or ChatGroq directly.
+
+WHY A FACTORY?
+- Switching LLM provider = change one env var (LLM_PROVIDER=groq), restart server.
+  No code changes, no redeployment of logic.
+- Fallback key: if the primary Gemini key hits rate limits, the chain transparently
+  retries with a second key via .with_fallbacks(). The caller never knows.
+- temperature=0 on all providers: deterministic output for support answers.
+  A VPN reset procedure should not vary between calls.
+
+SUPPORTED PROVIDERS (set LLM_PROVIDER in .env):
+  "gemini"  → Google Gemini Flash (default)
+  "groq"    → Llama 3.1 8B via Groq (fast, free tier)
+
+CALLED BY:
+  agent.py      → llm = get_llm()        (builds the ReAct agent)
+  rag_chain.py  → llm = get_llm()        (answers after retrieval)
+  Both call at module import — one LLM instance per process.
+"""
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from app.config import settings
+
 
 def get_llm():
     """

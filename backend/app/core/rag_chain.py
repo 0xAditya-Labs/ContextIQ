@@ -1,14 +1,38 @@
+"""
+ContextIQ — RAG Chain
+======================
+This module is the INNER layer that does actual retrieval + LLM answer generation.
+It is called by agent.py's tool function (it_support_lookup_func), NOT by routes.py directly.
+
+Call chain:
+  routes.py  →  agent.py (_agent.invoke)
+             →  it_support_lookup_func (tool)
+             →  ask_question (THIS FILE)
+             →  retrieval_strategies.py (get chunks from ChromaDB)
+             →  llm.invoke (get final answer from Gemini/Groq)
+
+Design note:
+  ask_question() is completely stateless — it takes a question string and
+  returns a dict. The agent and route layers own state (metrics, sources, history).
+  This makes it independently testable and easy to A/B test retrieval strategies.
+"""
+
 from langchain_core.prompts import PromptTemplate
 from app.config import settings
 from .retrieval_strategies import get_strategy
 from .vectorstore import get_vectorstore, get_ticket_lookup
 from .llm_factory import get_llm
 
-# Initialize the LLM via factory
+# ── Module-level singletons ────────────────────────────────────────────────────
+# LLM is initialised once at import time — creating it per-request is expensive
+# (auth handshake, object allocation). This is safe because ChatGoogleGenerativeAI
+# and ChatGroq are stateless between calls.
 llm = get_llm()
 
-# Standard RAG prompt is now loaded dynamically from the environment
+# RAG prompt template — loaded from env so it can be swapped without redeploying.
+# {context} and {question} are the two slots filled per request.
 rag_prompt = PromptTemplate.from_template(settings.RAG_SYSTEM_PROMPT)
+
 
 def ask_question(question: str, strategy_name: str = None) -> dict:
     """

@@ -1,4 +1,34 @@
+"""
+ContextIQ — IT Ticket Parser
+==============================
+Reads the flat-file knowledge base (data/dummy_it_tickets.txt) and converts
+it into a list of structured dicts that the ingestion pipeline can process.
+
+WHY a flat .txt file instead of a database?
+- Zero infrastructure: no Postgres, no migrations, no connection pool.
+- The dataset is static (IT resolution playbooks don't change per query).
+- ChromaDB handles all the search — the .txt is only read once at startup.
+
+FORMAT expected in the file:
+  Ticket ID: TKT-001
+  Category: VPN
+  Issue: Description of the problem
+  Resolution: Step-by-step fix
+
+  Ticket ID: TKT-002   ← blank line separates tickets
+  ...
+
+CALLED BY:
+  vectorstore.prepare_and_store_documents()  — at startup for ingestion
+  vectorstore.get_ticket_lookup()            — lazy-loaded for ParentDocumentStrategy
+
+TESTED BY:
+  tests/test_ticket_parser.py  — 10 pytest cases covering count, field extraction,
+  Windows line endings, empty files, missing files, and malformed tickets.
+"""
+
 import os
+
 
 def parse_tickets(filepath: str) -> list[dict]:
     """

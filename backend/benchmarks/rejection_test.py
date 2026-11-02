@@ -173,3 +173,23 @@ if __name__ == "__main__":
 
     print("=" * 65)
 
+    # ── Write JSON output for fill_results.py ───────────────────────────────
+    import json
+
+    _results = {
+        "it_answered_correctly": len(it_results) - it_wrong,
+        "it_total":              len(it_results),
+        "ot_rejected_correctly": ot_correct,
+        "ot_total":              len(ot_results),
+        "rejection_rate_pct":    round(rejection_rate, 1),
+        "it_accuracy_pct":       round(it_accuracy, 1),
+        "it_avg_latency_ms":     round(it_avg_ms, 2),
+        "ot_avg_latency_ms":     round(ot_avg_ms, 2),
+        "latency_saved_ms":      round(it_avg_ms - ot_avg_ms, 2),
+    }
+
+    _out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results_rejection.json")
+    with open(_out, "w", encoding="utf-8") as _f:
+        json.dump(_results, _f, indent=2)
+    print(f"\nResults saved → {_out}")
+

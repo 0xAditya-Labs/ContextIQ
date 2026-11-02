@@ -150,4 +150,3 @@ Resolution: Reset email password
             assert tickets[0]["ticket_id"] == "TKT-010"
         finally:
             os.unlink(path)
-

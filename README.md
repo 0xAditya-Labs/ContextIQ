@@ -39,6 +39,90 @@ This creates a measurable and observable system: token usage, rejection rate, an
 
 ---
 
+## System Architecture
+
+```mermaid
+flowchart TD
+    User["👤 Employee\n(React Frontend)"]
+    API["FastAPI\n/query endpoint\n+ request-ID logging"]
+    Agent["LangGraph ReAct Agent\nrecursion_limit = 8"]
+    Gate{"Scope Gate\nSystem Prompt\n+ Tool Description"}
+    Tool["it_support_lookup\ntool"]
+    RAG["RAG Chain\nask_question()"]
+    Strategy{"Retrieval Strategy\nmetadata_chunk\nparent_document"}
+    Chroma["ChromaDB\nPersistentClient\n(Singleton)"]
+    LLM["LLM\nGemini Flash / Groq\ntemperature = 0"]
+    Reject["❌ Rejection\nno DB hit\nno extra tokens"]
+    Answer["✅ Answer\n+ source ticket IDs"]
+    Langfuse["Langfuse\ntoken counts\ntool decisions\nprompt traces"]
+    OTel["OpenTelemetry\nvector_db_search span\notel_traces.log"]
+    Metrics["SimpleMetrics\n/metrics endpoint\nrejection_rate_pct\navg_latency_ms"]
+
+    User -->|"POST /query"| API
+    API --> Agent
+    Agent --> Gate
+    Gate -->|"IT query"| Tool
+    Gate -->|"Off-topic"| Reject
+    Tool --> RAG
+    RAG --> Strategy
+    Strategy -->|"similarity_search"| Chroma
+    Chroma -->|"top-K chunks"| Strategy
+    Strategy -->|"context"| LLM
+    LLM --> Answer
+    Answer --> API
+    API --> Metrics
+
+    Agent -. "CallbackHandler" .-> Langfuse
+    Chroma -. "OTel span" .-> OTel
+
+    style Reject fill:#ff6b6b,color:#fff
+    style Answer fill:#51cf66,color:#fff
+    style Gate fill:#ffd43b,color:#333
+    style OTel fill:#425CC7,color:#fff
+    style Langfuse fill:#000,color:#fff
+```
+
+### Request Lifecycle (Sequence)
+
+```mermaid
+sequenceDiagram
+    participant FE as React Frontend
+    participant API as FastAPI /query
+    participant Agent as LangGraph Agent
+    participant Tool as it_support_lookup
+    participant DB as ChromaDB (Singleton)
+    participant LLM as Gemini / Groq
+    participant LF as Langfuse
+    participant OT as OTel Log
+
+    FE->>API: POST /query {question}
+    Note over API: Pydantic validates (min 3, max 500 chars)<br/>Generates 8-char request ID
+    API->>Agent: invoke({messages}, callbacks=[LangfuseHandler])
+    Agent-->>LF: trace starts (tokens, prompt logged)
+    
+    alt IT support query
+        Agent->>Tool: call it_support_lookup(question)
+        Tool->>DB: perform_similarity_search(question, k=3)
+        DB-->>OT: vector_db_search span (start_time, end_time)
+        DB-->>Tool: top-K chunks
+        Tool->>LLM: prompt = context + question
+        LLM-->>Tool: answer string
+        Tool-->>Agent: answer (thread-local stores sources)
+        Agent-->>API: final answer
+        API->>API: get_last_sources() from thread-local
+    else Off-topic query
+        Agent-->>API: rejection message (no tool called)
+        Note over API: sources = []
+    end
+
+    API->>API: metrics.record(latency_ms, was_rejected)
+    API->>API: append to _query_history deque(maxlen=50)
+    Agent-->>LF: trace ends (input/output tokens recorded)
+    API-->>FE: {answer, sources}
+```
+
+---
+
 ## Architecture
 
 ### Agent & Gating Layer
@@ -137,31 +221,41 @@ Results are scored in Langfuse: token counts, latency, and prompt quality scores
 ContextIQ/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                     # FastAPI app, CORS, startup ingestion hook
+│   │   ├── main.py                     # FastAPI app, CORS, startup auto-ingestion hook
 │   │   ├── config.py                   # Settings class — single source of truth for all env vars
 │   │   ├── api/
-│   │   │   └── routes.py               # /health + /query endpoints
+│   │   │   └── routes.py               # /health /query /metrics /metrics/reset /history
 │   │   ├── core/
-│   │   │   ├── agent.py                # LangGraph ReAct agent + system prompt + tool definition
-│   │   │   ├── llm_factory.py          # Factory: Gemini or Groq with fallback chain
-│   │   │   ├── rag_chain.py            # RAG orchestrator (strategy resolution + prompt + LLM)
-│   │   │   ├── retrieval_strategies.py # Strategy ABC + MetadataChunk + ParentDocument
-│   │   │   ├── telemetry.py            # Langfuse handler + OTel TracerProvider (singleton)
+│   │   │   ├── agent.py                # LangGraph ReAct agent, system prompt, tool + sources side-channel
+│   │   │   ├── llm_factory.py          # Factory: Gemini or Groq with automatic fallback key chain
+│   │   │   ├── metrics.py              # Thread-safe in-memory metrics (rejection_rate, avg_latency)
+│   │   │   ├── rag_chain.py            # RAG orchestrator: strategy → retrieval → prompt → LLM
+│   │   │   ├── retrieval_strategies.py # Strategy ABC + MetadataChunk + ParentDocument implementations
+│   │   │   ├── telemetry.py            # Langfuse CallbackHandler + OTel TracerProvider (module singleton)
 │   │   │   ├── ticket_parser.py        # Parses .txt knowledge base → structured dicts
-│   │   │   └── vectorstore.py          # ChromaDB singleton + custom embeddings + OTel-traced search
+│   │   │   └── vectorstore.py          # ChromaDB singleton + custom REST embeddings + OTel-traced search
 │   │   ├── data/
-│   │   │   └── dummy_it_tickets.txt    # Knowledge base: structured IT support tickets
+│   │   │   └── dummy_it_tickets.txt    # Flat-file knowledge base: structured IT support tickets
 │   │   └── models/
-│   │       └── schemas.py              # Pydantic: QueryRequest, QueryResponse
+│   │       └── schemas.py              # Pydantic: QueryRequest (validated) + QueryResponse
+│   ├── benchmarks/
+│   │   ├── latency_test.py             # Warm vs cold ChromaDB path — measures singleton improvement %
+│   │   ├── rejection_test.py           # 30 queries (15 IT + 15 off-topic) — measures rejection rate %
+│   │   ├── fill_results.py             # Auto-fills BENCHMARKING_RESULTS.md from JSON + OTel log + /metrics
+│   │   ├── run_benchmarks.bat          # Windows: runs all 3 scripts in order, auto-fills results doc
+│   │   └── run_benchmarks.sh           # Mac/Linux: same pipeline with colour output
+│   ├── tests/
+│   │   └── test_ticket_parser.py       # 10 pytest cases: count, fields, CRLF, empty, FileNotFoundError
+│   ├── Dockerfile                      # python:3.11-slim, non-root user, cache-friendly COPY layers
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
-│       ├── App.jsx                     # Root: message state, theme toggle, backend wakeup ping
-│       ├── api/client.js               # sendQuery() — typed fetch wrapper with error fallback
+│       ├── App.jsx                     # Root: message state, theme toggle, /health wakeup ping on mount
+│       ├── api/client.js               # sendQuery() — typed fetch wrapper with error normalisation
 │       └── components/
 │           ├── ChatWindow.jsx          # Message list with auto-scroll (useRef + useEffect)
-│           ├── InputBox.jsx            # Controlled form — disabled during loading
-│           └── MessageBubble.jsx       # User/assistant bubble with optional source display
+│           ├── InputBox.jsx            # Controlled form — disabled during in-flight requests
+│           └── MessageBubble.jsx       # User/assistant bubble with optional source ticket display
 └── docs/assets/                        # Screenshots referenced in README
 ```
 
@@ -205,6 +299,35 @@ Set `VITE_API_URL` to your Render service URL (e.g., `https://contextiq-api.onre
 
 ---
 
+## Benchmarking
+
+The performance claims in this project are measured, not estimated. Two benchmark scripts produce the numbers:
+
+| Script | What it measures | Output |
+|--------|-----------------|--------|
+| `latency_test.py` | ChromaDB warm (singleton) vs cold (re-init per request) | Latency improvement %, P50/P95 ms |
+| `rejection_test.py` | 15 IT + 15 off-topic queries against the live server | Rejection rate %, IT accuracy %, latency saved per rejection |
+
+Run the full pipeline from `backend/`:
+```bash
+# Windows
+venv\Scripts\activate
+benchmarks\run_benchmarks.bat
+
+# Mac / Linux
+source venv/bin/activate
+bash benchmarks/run_benchmarks.sh
+```
+
+The runner automatically:
+1. Runs 10 pytest unit tests
+2. Runs the latency benchmark → writes `benchmarks/results_latency.json`
+3. Prompts you to start the server, then runs the rejection benchmark → writes `benchmarks/results_rejection.json`
+4. Reads `/metrics` endpoint + `otel_traces.log`
+5. **Auto-fills** `BENCHMARKING_RESULTS.md` with real numbers from all sources
+
+---
+
 ## Local Development
 
 ### Backend
@@ -241,6 +364,19 @@ npm run dev
 ```
 
 Set `VITE_API_URL=http://localhost:8000` in `frontend/.env.local` (or leave unset — it defaults to `localhost:8000`).
+
+---
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/health` | Liveness probe; React frontend pings this on mount to warm up Render |
+| `POST` | `/query` | Main endpoint — runs the agent, returns `{answer, sources}` |
+| `GET` | `/metrics` | Live stats: `total_requests`, `rejection_rate_pct`, `avg_latency_ms` |
+| `POST` | `/metrics/reset` | Resets all counters — call between benchmark runs for clean data |
+| `GET` | `/history` | Last 50 query-answer pairs (rolling in-memory window) |
+| `GET` | `/docs` | FastAPI auto-generated Swagger UI |
 
 ---
 
