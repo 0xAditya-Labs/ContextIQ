@@ -154,3 +154,6 @@ Thumbs.db
 
 # Chroma DB
 chroma_db/
+
+# Private notes — not to be pushed
+not_to_be_pushed_on_github/

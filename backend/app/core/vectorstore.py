@@ -1,21 +1,49 @@
+"""
+ContextIQ — ChromaDB Vector Store + Embeddings
+===============================================
+Key design decisions documented here:
+
+1. GoogleRestEmbeddings — custom REST client bypassing the SDK.
+   The langchain_google_genai SDK routes embedding calls through v1beta, where
+   text-embedding-004 returns HTTP 404. Calling the stable v1 REST endpoint
+   directly is the only reliable fix.
+
+2. ChromaDBSingleton — prevents per-request disk I/O.
+   PersistentClient reads from disk and acquires OS file locks on every
+   instantiation. The singleton ensures this happens once at startup, not
+   on every query.
+
+3. perform_similarity_search — OTel-traced wrapper.
+   Langfuse's CallbackHandler only sees LangChain operations. The raw
+   chromadb call is invisible to it. The manual OTel span here lets us
+   measure exact vector DB latency independently from LLM latency.
+"""
+
 import os
+import logging
+
 import requests
 import chromadb
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
+
 from .ticket_parser import parse_tickets
 
+logger = logging.getLogger("contextiq.vectorstore")
+
+
+# ── Custom Embeddings ──────────────────────────────────────────────────────────
 
 class GoogleRestEmbeddings:
     """
-    Custom LangChain-compatible embeddings class that calls the Google Generative
-    AI REST API directly on the stable v1 endpoint.
+    LangChain-compatible embeddings that call the Google Generative AI
+    REST API on the stable v1 endpoint directly.
 
-    WHY: The `langchain_google_genai` package internally uses the `google-genai`
-    SDK which routes embedding requests through v1beta. The text-embedding-004
-    model is NOT available on v1beta, causing a persistent 404 error. Calling the
-    stable v1 REST endpoint directly is the only reliable workaround.
+    Why not use langchain_google_genai?
+    The package's internal google-genai SDK routes through v1beta.
+    text-embedding-004 is NOT available on v1beta → HTTP 404.
+    Calling v1 directly via requests is the only working path.
     """
 
     MODEL   = "models/text-embedding-004"
@@ -36,77 +64,97 @@ class GoogleRestEmbeddings:
         return response.json()["embedding"]["values"]
 
     def _embed_one(self, text: str) -> list:
-        """Embed a single string, falling back to the secondary key on failure."""
+        """Embed a single string; fall back to secondary key on failure."""
         try:
             return self._call_api(text, self.api_key)
         except Exception as primary_error:
             if self.fallback_api_key:
-                print(f"Primary key failed ({primary_error}), trying fallback key...")
+                logger.warning(
+                    f"Primary embedding key failed ({primary_error}), "
+                    "trying fallback key..."
+                )
                 return self._call_api(text, self.fallback_api_key)
             raise
 
     def embed_documents(self, texts: list) -> list:
-        return [self._embed_one(text) for text in texts]
+        return [self._embed_one(t) for t in texts]
 
     def embed_query(self, text: str) -> list:
         return self._embed_one(text)
 
 
+# ── ChromaDB Singleton ─────────────────────────────────────────────────────────
+
 class ChromaDBSingleton:
-    _client_instance    = None
+    """
+    Class-level singleton for both the ChromaDB client and the embeddings model.
+
+    Why singleton?
+    - PersistentClient: opening the same chroma_db/ from multiple client
+      instances causes file-lock conflicts and redundant disk I/O.
+    - Embeddings: loading a HuggingFace model from disk takes 1-3 seconds.
+      Loading it once at startup vs once per request is the difference between
+      a responsive service and a painfully slow one.
+
+    Why class-level (not module-level)?
+    Class-level state survives across imports; module-level globals can be
+    re-initialised if the module is reloaded. Class vars are the safer pattern
+    for long-lived singletons in an ASGI server.
+    """
+
+    _client_instance     = None
     _embeddings_instance = None
 
     @classmethod
-    def get_client(cls):
-        """
-        SINGLETON PATTERN: avoids re-initializing DB client on every call,
-        which causes repeated disk I/O and slow cold-starts.
-        """
+    def get_client(cls) -> chromadb.PersistentClient:
         if cls._client_instance is None:
-            cls._client_instance = chromadb.PersistentClient(path="./chroma_db")
+            path = "./chroma_db"
+            logger.info(f"Initialising ChromaDB PersistentClient at '{path}'")
+            cls._client_instance = chromadb.PersistentClient(path=path)
         return cls._client_instance
 
     @classmethod
     def get_embeddings(cls):
-        """
-        SINGLETON PATTERN: load the expensive embedding weights once at startup.
-        Switches between Google REST embeddings (cloud, zero memory) and
-        HuggingFace (local, high memory) based on EMBEDDING_PROVIDER env var.
-        """
         if cls._embeddings_instance is None:
             from app.config import settings
+
             if settings.EMBEDDING_PROVIDER == "google":
-                print("Initializing Google REST embeddings (v1 API)...")
+                logger.info("Initialising Google REST embeddings (text-embedding-004, v1 API)")
                 cls._embeddings_instance = GoogleRestEmbeddings(
                     api_key=settings.GOOGLE_API_KEY,
                     fallback_api_key=settings.GOOGLE_API_KEY_FALLBACK or None,
                 )
             else:
                 from langchain_huggingface import HuggingFaceEmbeddings
-                print("Initializing HuggingFace embeddings model (this runs locally)...")
+                logger.info(
+                    "Initialising HuggingFace embeddings (all-MiniLM-L6-v2, local)"
+                )
                 cls._embeddings_instance = HuggingFaceEmbeddings(
                     model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
+
         return cls._embeddings_instance
 
 
-def prepare_and_store_documents():
+# ── Ingestion Pipeline ─────────────────────────────────────────────────────────
+
+def prepare_and_store_documents() -> dict:
     """
-    Reads the dummy IT tickets using ticket_parser, chunks the text while preserving
-    ticket_id in metadata, creates embeddings, and stores them into ChromaDB.
+    Full ingestion pipeline:
+      parse .txt → create Documents → chunk → embed → store in ChromaDB.
 
     Returns:
-        dict: A lookup mapping ticket_id to its full_text.
+        dict: ticket_id → full_text mapping (used by ParentDocumentStrategy).
+
+    Called automatically by main.py's startup_event if chroma_db/ is absent.
     """
-    # 1. Parse tickets
     current_dir = os.path.dirname(__file__)
     file_path   = os.path.join(current_dir, "..", "data", "dummy_it_tickets.txt")
 
-    print(f"Loading and parsing documents from {file_path}...")
+    logger.info(f"Parsing tickets from {file_path}")
     parsed_tickets = parse_tickets(file_path)
 
-    # Create Document objects with metadata
-    documents    = []
+    documents     = []
     ticket_lookup = {}
 
     for ticket in parsed_tickets:
@@ -122,69 +170,71 @@ def prepare_and_store_documents():
 
     from app.config import settings
 
-    # 2. Chunking
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=settings.CHUNK_SIZE,
         chunk_overlap=settings.CHUNK_OVERLAP,
     )
     chunks = text_splitter.split_documents(documents)
+    logger.info(f"Created {len(chunks)} chunks from {len(parsed_tickets)} tickets")
 
-    # 3. Embeddings (Reuse Singleton)
-    embeddings   = ChromaDBSingleton.get_embeddings()
+    embeddings    = ChromaDBSingleton.get_embeddings()
     chroma_client = ChromaDBSingleton.get_client()
 
-    # 4. Store in Vector Database (ChromaDB)
-    print("Storing chunks into ChromaDB...")
     vectorstore = Chroma(
         client=chroma_client,
         collection_name="it_tickets_collection",
         embedding_function=embeddings,
     )
-
     vectorstore.add_documents(chunks)
-    print(f"Successfully created and stored {len(chunks)} chunks!")
+    logger.info(f"Stored {len(chunks)} chunks in ChromaDB collection 'it_tickets_collection'")
 
-    # Return the ticket lookup for the ParentDocumentStrategy
     return ticket_lookup
 
 
-_ticket_lookup_cache = None
+# ── Lazy ticket lookup ─────────────────────────────────────────────────────────
+
+_ticket_lookup_cache: dict | None = None
 
 
-def get_ticket_lookup():
+def get_ticket_lookup() -> dict:
     """
-    Lazy-loads and returns the ticket lookup dictionary.
-    Used by the ParentDocumentStrategy to fetch full ticket texts.
+    Lazy-loads and caches the ticket_id → full_text mapping.
+    Used by ParentDocumentStrategy to fetch complete ticket text.
     """
     global _ticket_lookup_cache
     if _ticket_lookup_cache is None:
         current_dir = os.path.dirname(__file__)
         file_path   = os.path.join(current_dir, "..", "data", "dummy_it_tickets.txt")
-        parsed_tickets        = parse_tickets(file_path)
-        _ticket_lookup_cache  = {t["ticket_id"]: t["full_text"] for t in parsed_tickets}
+        parsed      = parse_tickets(file_path)
+        _ticket_lookup_cache = {t["ticket_id"]: t["full_text"] for t in parsed}
+        logger.debug(f"Ticket lookup cached: {len(_ticket_lookup_cache)} entries")
     return _ticket_lookup_cache
 
 
-def get_vectorstore():
-    """Returns the initialized Chroma vectorstore object."""
-    chroma_client = ChromaDBSingleton.get_client()
-    embeddings    = ChromaDBSingleton.get_embeddings()
+# ── Vectorstore accessor ───────────────────────────────────────────────────────
+
+def get_vectorstore() -> Chroma:
+    """Returns a Chroma vectorstore object backed by the singleton client."""
     return Chroma(
-        client=chroma_client,
+        client=ChromaDBSingleton.get_client(),
         collection_name="it_tickets_collection",
-        embedding_function=embeddings,
+        embedding_function=ChromaDBSingleton.get_embeddings(),
     )
 
 
-def perform_similarity_search(question: str, k: int = 3):
-    """
-    Wraps the Chroma similarity_search in a manual OpenTelemetry span.
+# ── OTel-traced similarity search ─────────────────────────────────────────────
 
-    Why this is needed:
-    Langfuse (via its CallbackHandler) automatically traces LLM invocations and
-    LangChain sequences, but it does NOT catch raw backend operations like this
-    Chroma database query. By adding a manual OTel span here, we can measure
-    the exact DB-level latency separately from the LLM processing time.
+def perform_similarity_search(question: str, k: int = 3) -> list:
+    """
+    Runs chromadb similarity_search wrapped in a manual OpenTelemetry span.
+
+    Why manual OTel (not just Langfuse)?
+    Langfuse's CallbackHandler captures LangChain-managed operations.
+    A raw chromadb call is invisible to it. The OTel span here gives us the
+    exact DB-level latency so we can separate "LLM was slow" from "DB was slow".
+
+    The span attributes (query text, k) are written to otel_traces.log and
+    can be parsed to extract the concrete latency numbers for the resume.
     """
     from .telemetry import tracer
 
@@ -193,7 +243,9 @@ def perform_similarity_search(question: str, k: int = 3):
     with tracer.start_as_current_span("vector_db_search") as span:
         span.set_attribute("query", question)
         span.set_attribute("k", k)
-        return vectorstore.similarity_search(question, k=k)
+        results = vectorstore.similarity_search(question, k=k)
+        span.set_attribute("results_count", len(results))
+        return results
 
 
 if __name__ == "__main__":
