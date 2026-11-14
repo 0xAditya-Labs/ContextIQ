@@ -12,6 +12,7 @@
 
 <div align="center">
   <b><a href="https://context-iq-frontend-seven.vercel.app/">🌐 Live Demo</a></b> &nbsp;|&nbsp;
+  <b><a href="https://contextiq-backend-fbkq.onrender.com/docs">⚡ Interactive Swagger (/docs)</a></b> &nbsp;|&nbsp;
   <b><a href="https://youtu.be/iB0DpAtEWZA?si=DufV_p64cXk-fUmC">🎥 Video Demo</a></b> &nbsp;|&nbsp;
   <b><a href="docs/01_PROJECT_DEEP_DIVE.md">📖 Deep-Dive Doc</a></b> &nbsp;|&nbsp;
   <b><a href="https://share.gemini.google/SJKBQVRTosyz">💬 LangGraph Deep-Dive (Gemini)</a></b> &nbsp;|&nbsp;
@@ -382,7 +383,21 @@ Set `VITE_API_URL=http://localhost:8000` in `frontend/.env.local` (or leave unse
 | `GET` | `/metrics` | Live stats: `total_requests`, `rejection_rate_pct`, `avg_latency_ms` |
 | `POST` | `/metrics/reset` | Resets all counters — call between benchmark runs for clean data |
 | `GET` | `/history` | Last 50 query-answer pairs (rolling in-memory window) |
-| `GET` | `/docs` | FastAPI auto-generated Swagger UI |
+| `GET` | `/docs` | FastAPI auto-generated Swagger UI (Interactive Testing Frontend) |
+
+### 🖥️ Interactive API Testing Frontend (`/docs`)
+
+If you want to test and explore the backend without spinning up the React client, FastAPI serves an interactive **Swagger UI frontend** out of the box:
+
+* **Live Cloud Swagger UI:** [https://contextiq-backend-fbkq.onrender.com/docs](https://contextiq-backend-fbkq.onrender.com/docs)
+* **Local Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Alternative ReDoc View:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+**What you can do directly from the `/docs` UI:**
+1. **Test `POST /query` ("Try it out"):** Send test questions (both in-scope IT queries and off-topic questions) to see immediate answers, source ticket IDs, and observe the gating mechanism live.
+2. **Inspect Real-time Metrics:** Query `GET /metrics` to inspect `rejection_rate_pct` and `avg_latency_ms`.
+3. **Inspect Rolling History:** Query `GET /history` to read the last 50 queries and their latency.
+4. **Examine Schemas:** Comfortably review all Pydantic request and response models with full type validation details.
 
 ---
 

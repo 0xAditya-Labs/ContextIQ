@@ -13,6 +13,7 @@
 7. [A/B Testing & Config-Driven Design](#7-ab-testing--config-driven-design)
 8. [Deployment Strategy](#8-deployment-strategy)
 9. [Code Issues / Messy Parts To Clean](#9-code-issues--messy-parts)
+10. [Interactive API Frontend & Testing (/docs)](#10-interactive-api-frontend--testing-docs)
 
 ---
 
@@ -436,4 +437,28 @@ RAG_SYSTEM_PROMPT=You are an IT support AI...
 7. **No `__init__.py` files** in `app/core/`, `app/api/` etc. — Python finds modules fine with the `app.` prefix pattern, but adding them makes imports explicit.
 8. **`schemas.py`** has `sources: Optional[List[str]] = []` — this should be `sources: List[str] = []` in Pydantic v2 (the `Optional` wrapper is redundant when a default is given).
 9. **Frontend error state** in `ChatWindow.jsx` has no visual error differentiation — an error message looks the same as a normal assistant message.
+
+---
+
+## 10. Interactive API Frontend & Testing (`/docs`)
+
+To make exploring and testing the backend comfortable without needing to clone, install, and run the React client, FastAPI provides an auto-generated, interactive **Swagger UI frontend** accessible directly in the browser:
+
+* **Live Production Swagger UI:** [https://contextiq-backend-fbkq.onrender.com/docs](https://contextiq-backend-fbkq.onrender.com/docs)
+* **Local Development Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **ReDoc Visual Documentation:** [http://localhost:8000/redoc](http://localhost:8000/redoc) (or `/redoc` on the live Render URL)
+
+### How to Use the `/docs` Testing Interface:
+1. **Interactive Querying (`POST /query`):**
+   - Click **Try it out**.
+   - Send an in-scope question like `{"question": "How do I reset my VPN credentials?"}` to observe the RAG retrieval answer and returned `sources`.
+   - Send an out-of-scope question like `{"question": "What is the capital of France?"}` to observe the immediate doc-string gating rejection.
+2. **Reviewing Live Observability (`GET /metrics`):**
+   - Hit `/metrics` to view live telemetry counters: `total_requests`, `rejected_requests`, `rejection_rate_pct`, and `avg_latency_ms`.
+3. **Reviewing Rolling History (`GET /history`):**
+   - Inspect the last 50 queries to review latency deltas between IT resolutions and fast-path rejections.
+4. **Inspecting Pydantic Schemas:**
+   - Scroll to the bottom to comfortably inspect data contracts (`QueryRequest`, `QueryResponse`) with field types, constraints, and defaults.
+
+> For the production conversational user experience, visit the full [React + Vite Frontend on Vercel](https://context-iq-frontend-seven.vercel.app/).
 
