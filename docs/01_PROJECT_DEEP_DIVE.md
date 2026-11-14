@@ -86,6 +86,10 @@ LangGraph ReAct Agent (reads system prompt with 8 IT categories)
 ### The "Doc-String Tool-Gating" Mechanism (Key Resume Point)
 The tool `it_support_lookup` is defined as a `StructuredTool` with a **description loaded from `.env`**. The agent's LLM reads this description to decide when to call the tool. The system prompt further reinforces the 8-category restriction. This double-layer of gating (system prompt + tool docstring) is what suppresses out-of-scope API calls.
 
+### Deep-Dive Discussion: LangGraph, ReAct & Scaling
+For a comprehensive breakdown explaining **how LangGraph models work under the hood**, **what the ReAct agent loops look like (Nodes & Edges)**, and **how to scale this architecture to enterprise production (10,000+ employees)**, refer to this recorded architecture session:
+👉 [Gemini Architecture Deep-Dive: LangGraph, ReAct & Scaling](https://share.gemini.google/SJKBQVRTosyz)
+
 ---
 
 ## 3. Full Architecture
@@ -182,7 +186,9 @@ ContextIQ/
 #### `backend/app/main.py` — The App Entry Point
 - Creates the FastAPI application instance.
 - Registers CORS middleware (allows the React frontend on a different port/domain to call the API).
-- Has a **`@app.on_event("startup")` hook**: on Render (cloud), the `chroma_db/` folder doesn't exist (it's in `.gitignore`). This hook detects that and **auto-ingests** the dummy tickets on first startup. On subsequent restarts, it skips ingestion.
+- Has a **`@app.on_event("startup")` hook**:
+  - Detects if `chroma_db/` exists; if missing (e.g. on Render cloud deploy), auto-ingests the tickets.
+  - **Compiles the LangGraph ReAct agent singleton**: Initialized once on startup right after ChromaDB is verified/ready, and shared with `routes.py` via `set_agent()`.
 - Attaches the API router from `routes.py`.
 
 #### `backend/app/config.py` — Settings / Config
@@ -192,10 +198,12 @@ ContextIQ/
 - A single `settings` object is imported everywhere — this is the **Single Source of Truth** pattern.
 
 #### `backend/app/api/routes.py` — API Routes
-- Defines two endpoints:
+- Defines endpoints:
   - `GET /health` → returns `{"status": "ok"}`. Used by the frontend's wakeup ping.
-  - `POST /query` → accepts `QueryRequest` (Pydantic model), creates the agent, invokes it, and returns `QueryResponse`.
-- **Known issue**: `create_it_agent()` is called fresh on every request (not cached). This creates a new agent object every time but re-uses the singleton LLM/DB connections underneath.
+  - `POST /query` → accepts `QueryRequest` (Pydantic model), invokes the cached agent singleton, and returns `QueryResponse`.
+  - `GET /metrics` & `POST /metrics/reset` → live rejection and latency metrics.
+  - `GET /history` → rolling 50-item query window.
+- **Agent Singleton Caching**: `create_it_agent()` is compiled once at server startup in `main.py` and passed into `routes.py` via `set_agent()`, with `get_agent()` providing safe lazy fallback. No per-request graph compilation overhead.
 
 #### `backend/app/core/agent.py` — The Brain
 - Defines the `AGENT_SYSTEM_PROMPT` string: 8 strict IT categories + absolute rules.
@@ -354,11 +362,8 @@ RAG_SYSTEM_PROMPT=You are an IT support AI...
 ## 9. Code Issues / Messy Parts To Clean
 
 ### 🔴 High Priority
-1. **`create_it_agent()` called on every request** in `routes.py` (line 15):
-   ```python
-   agent = create_it_agent()  # This runs on EVERY POST /query
-   ```
-   The agent itself should be created once at startup and reused. The per-request overhead is small but unnecessary. **Fix**: Initialize agent at module level or in the startup event.
+1. ~~**`create_it_agent()` called on every request**~~ — **[FIXED]**:
+   Compiled once at server startup in `main.py` (`@app.on_event("startup")`) right after ChromaDB is ready, stored in `app.state.agent`, and registered with `routes.set_agent()`. Eliminates repeated graph compilation while ensuring all requests share the stateless agent.
 
 2. **`allow_origins=["*"]`** in `main.py` (line 34):
    In production, this should be the exact Vercel URL, e.g.:

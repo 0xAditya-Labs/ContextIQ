@@ -13,6 +13,8 @@
 <div align="center">
   <b><a href="https://context-iq-frontend-seven.vercel.app/">🌐 Live Demo</a></b> &nbsp;|&nbsp;
   <b><a href="https://youtu.be/iB0DpAtEWZA?si=DufV_p64cXk-fUmC">🎥 Video Demo</a></b> &nbsp;|&nbsp;
+  <b><a href="docs/01_PROJECT_DEEP_DIVE.md">📖 Deep-Dive Doc</a></b> &nbsp;|&nbsp;
+  <b><a href="https://share.gemini.google/SJKBQVRTosyz">💬 LangGraph Deep-Dive (Gemini)</a></b> &nbsp;|&nbsp;
   <b><a href="https://docs.google.com/presentation/d/1YjKR_LsQPGX68dEUOVmqeWUsBH6sl-gq/edit?usp=sharing&ouid=105688022393717157912&rtpof=true&sd=true">📊 Architecture Deck</a></b>
 </div>
 
@@ -36,6 +38,10 @@ Query → Agent Reasons → [In-scope]  → it_support_lookup tool → ChromaDB 
 ```
 
 This creates a measurable and observable system: token usage, rejection rate, and DB latency are all instrumented — not estimated.
+
+> 💡 **Further Reading & Architecture Discussions:**
+> - [📖 Complete Project Deep-Dive Documentation](docs/01_PROJECT_DEEP_DIVE.md) — Comprehensive guide covering every architectural layer, file structure, tradeoffs, and benchmarking math.
+> - [💬 Gemini Architecture Deep-Dive](https://share.gemini.google/SJKBQVRTosyz) — Conversational deep dive into how LangGraph operates under the hood (nodes & edges), what the ReAct loop does, and strategies for scaling to enterprise load.
 
 ---
 

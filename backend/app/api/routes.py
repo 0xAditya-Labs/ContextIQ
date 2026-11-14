@@ -36,9 +36,23 @@ logger = logging.getLogger("contextiq.routes")
 router = APIRouter()
 
 # ── Agent singleton ────────────────────────────────────────────────────────────
-# create_it_agent() compiles the LangGraph graph. This runs once at import time.
-# All requests share this compiled graph — it is stateless between calls.
-_agent = create_it_agent()
+# The agent is compiled once at application startup in main.py.
+# All requests share this single compiled graph — it is stateless between calls.
+_agent = None
+
+
+def set_agent(agent):
+    """Caches the single agent instance compiled during main.py startup."""
+    global _agent
+    _agent = agent
+
+
+def get_agent():
+    """Returns the cached agent singleton, initializing lazily as fallback."""
+    global _agent
+    if _agent is None:
+        _agent = create_it_agent()
+    return _agent
 
 # Marker string the agent uses when it rejects an out-of-scope query
 _REJECTION_MARKER = "I'm sorry, I can only assist with"
@@ -96,8 +110,9 @@ def query_agent(request: QueryRequest):
         callbacks.append(langfuse_handler)
 
     # Invoke the cached agent and time the full round-trip
+    agent = get_agent()
     t_start = time.perf_counter()
-    response = _agent.invoke(
+    response = agent.invoke(
         {"messages": [("user", request.question)]},
         config={
             "recursion_limit": 8,

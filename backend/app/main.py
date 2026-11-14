@@ -40,7 +40,7 @@ app = FastAPI(
 )
 
 
-# ── Startup: auto-ingest ChromaDB if missing ───────────────────────────────────
+# ── Startup: auto-ingest ChromaDB if missing & initialize agent singleton ──────
 @app.on_event("startup")
 async def startup_event():
     """
@@ -49,6 +49,7 @@ async def startup_event():
     ingestion pipeline automatically so the service is self-healing on first deploy.
 
     On subsequent restarts the existing DB is reused — ingestion is skipped.
+    Initializes the single LangGraph ReAct agent instance right after ChromaDB is ready.
     """
     current_dir = os.path.dirname(__file__)
     db_path = os.path.join(current_dir, "..", "chroma_db")
@@ -60,6 +61,15 @@ async def startup_event():
         logger.info("Ingestion complete. Vector store is ready.")
     else:
         logger.info("chroma_db/ found — skipping ingestion.")
+
+    # Initialize the single LangGraph ReAct agent instance right after DB verification
+    logger.info("Compiling LangGraph ReAct agent singleton...")
+    from app.core.agent import create_it_agent
+    agent = create_it_agent()
+    app.state.agent = agent
+    from app.api import routes
+    routes.set_agent(agent)
+    logger.info("LangGraph ReAct agent ready.")
 
 
 # ── CORS ───────────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ Key design decisions:
 - recursion_limit=8 caps the agent at 4 tool calls (each call = 2 graph edges).
 - Sources are captured via a thread-local side-channel so the route layer can
   return them in the API response without changing the tool's return type.
-- The agent object itself is NOT created here at module level — routes.py
+- The agent object itself is NOT created here at module level — main.py
   creates and caches it once at startup via create_it_agent().
 """
 
@@ -101,7 +101,7 @@ def create_it_agent():
     Limit of 8 = max 4 tool invocations. Acts as a hard safety net against
     infinite reasoning loops.
 
-    NOTE: This function is called ONCE at module import in routes.py and the
+    NOTE: This function is called ONCE at server startup in main.py and the
     result is cached. Graph compilation is not cheap — do not call per-request.
     """
     tools = [it_support_lookup]
